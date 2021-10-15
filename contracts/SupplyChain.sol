@@ -4,26 +4,42 @@ pragma solidity >=0.5.16 <0.9.0;
 contract SupplyChain {
 
   // <owner>
+  address public owner;
 
   // <skuCount>
+  uint public skuCount;
 
   // <items mapping>
+  mapping (uint => Item) items;
 
   // <enum State: ForSale, Sold, Shipped, Received>
+  enum State{ForSale, Sold, Shipped, Received}
 
   // <struct Item: name, sku, price, state, seller, and buyer>
+  struct Item {
+    string name;
+    uint sku;
+    uint price;
+    State state;
+    address payable seller;
+    address payable buyer;
+  }
   
   /* 
    * Events
    */
 
   // <LogForSale event: sku arg>
+  event LogForSale(uint sku);
 
   // <LogSold event: sku arg>
+  event LogSold(uint sku);
 
   // <LogShipped event: sku arg>
+  event LogShipped(uint sku);
 
   // <LogReceived event: sku arg>
+  event LogReceived(uint sku);
 
 
   /* 
@@ -33,19 +49,26 @@ contract SupplyChain {
   // Create a modifer, `isOwner` that checks if the msg.sender is the owner of the contract
 
   // <modifier: isOwner
+  modifier isOwner {
+    require(msg.sender == owner);
+    _;
+  }
 
   modifier verifyCaller (address _address) { 
-    // require (msg.sender == _address); 
+    require (msg.sender == _address); 
     _;
   }
 
   modifier paidEnough(uint _price) { 
-    // require(msg.value >= _price); 
+    require(msg.value >= _price); 
     _;
   }
 
   modifier checkValue(uint _sku) {
     //refund them after pay for item (why it is before, _ checks for logic before func)
+    uint _price = items[_sku].price;
+    uint amountToRefund = msg.value - _price;
+    items[_sku].buyer.transfer(amountToRefund);
     _;
     // uint _price = items[_sku].price;
     // uint amountToRefund = msg.value - _price;
@@ -61,13 +84,31 @@ contract SupplyChain {
   // an Item has been added?
 
   // modifier forSale
+  modifier ForSale(uint _sku) {
+    require (items[_sku].state == State.ForSale);
+    _;
+  }
   // modifier sold(uint _sku) 
+  modifier sold(uint _sku) {
+    require (items[_sku].state == State.Sold);
+    _;
+  }
   // modifier shipped(uint _sku) 
+  modifier shipped(uint _sku) {
+    require (items[_sku].state == State.Shipped);
+    _;
+  }
   // modifier received(uint _sku) 
+  modifier received(uint _sku) {
+    require (items[_sku].state == State.Received);
+    _;
+  }
 
   constructor() public {
     // 1. Set the owner to the transaction sender
     // 2. Initialize the sku count to 0. Question, is this necessary?
+    owner = msg.sender;
+    skuCount = 0;
   }
 
   function addItem(string memory _name, uint _price) public returns (bool) {
@@ -75,6 +116,20 @@ contract SupplyChain {
     // 2. Increment the skuCount by one
     // 3. Emit the appropriate event
     // 4. return true
+    items[skuCount] = Item({
+      name: _name,
+      sku: skuCount,
+      price: _price,
+      state: State.ForSale,
+      seller: msg.sender,
+      buyer: address(0)
+    });
+
+    skuCount = skuCount + 1;
+
+    emit LogForSale(skuCount);
+
+    return true;
 
     // hint:
     // items[skuCount] = Item({
